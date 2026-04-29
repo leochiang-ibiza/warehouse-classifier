@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GoWarehouse 管理後台</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #0a0e1a;
+    color: #e2e8f0;
+    font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  a { color: #60a5fa; text-decoration: none; }
+
+  /* ========== 版面 ========== */
+  .page { max-width: 1600px; margin: 0 auto; padding: 16px 24px; }
+
+  /* ========== 頂部:標題 + 分頁 ========== */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #2a3142;
+    margin-bottom: 20px;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .header h1 .badge { color: #4ade80; margin-right: 6px; }
+  .header .meta { font-size: 13px; color: #64748b; }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+  .tab {
+    background: #1a1f2e;
+    border: 1px solid #2a3142;
+    color: #94a3b8;
+    padding: 10px 20px;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    border-bottom: none;
+  }
+  .tab.active { background: #11162a; color: #4ade80; border-color: #4ade80; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ========== 統計卡片 ========== */
+  .stats-strip {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    background: #1a1f2e;
+    border: 1px solid #2a3142;
+    border-radius: 10px;
+    padding: 12px 16px;
+    flex-shrink: 0;
+    min-width: 140px;
+  }
+  .stat-card.primary { background: linear-gradient(135deg, #166534, #15803d); border-color: #4ade80; }
+  .stat-card .label { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+  .stat-card.primary .label { color: #d1fae5; }
+  .stat-card .value { font-size: 28px; font-weight: 800; }
+  .stat-card .sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+  /* ========== 篩選列 ========== */
+  .filter-bar {
+    background: #1a1f2e;
+    border: 1px solid #2a3142;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .filter-bar label { font-size: 13px; color: #94a3b8; }
+  .filter-bar select, .filter-bar input[type="date"] {
+    background: #0a0e1a;
+    border: 1px solid #2a3142;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    color: #e2e8f0;
+    min-width: 120px;
+  }
+  .filter-bar select:focus, .filter-bar input:focus { outline: none; border-color: #4ade80; }
+  .filter-bar .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .auto-refresh {
+    font-size: 12px;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pulse-dot {
+    width: 8px; height: 8px;
+    background: #4ade80;
+    border-radius: 50%;
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ========== 共用按鈕 ========== */
+  .btn {
+    background: #2a3142;
+    color: #e2e8f0;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn:hover { background: #3b4254; }
+  .btn-primary { background: #4ade80; color: #052e16; }
+  .btn-primary:hover { background: #86efac; }
+  .btn-danger { background: #ef4444; color: #fff; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  /* ========== 表格 ========== */
+  .table-wrap {
+    background: #1a1f2e;
+    border: 1px solid #2a3142;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th, td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid #2a3142;
+    vertical-align: middle;
+  }
+  th {
+    background: #0a0e1a;
+    color: #94a3b8;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    position: sticky;
+    top: 0;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #11162a; }
+  td.cat-cell {
+    cursor: pointer;
+    font-weight: 700;
+    color: #4ade80;
+    user-select: none;
+  }
+  td.cat-cell:hover { background: #1f2937; }
+  td.cat-cell.editing { background: #1f2937; padding: 2px 4px; }
+  td.cat-cell select {
+    background: #0a0e1a;
+    border: 2px solid #4ade80;
+    border-radius: 4px;
+    padding: 4px 6px;
+    color: #e2e8f0;
+    font-size: 13px;
+    width: 100%;
+  }
+
+  .conf-bar {
+    display: inline-block;
+    width: 50px;
+    height: 8px;
+    background: #2a3142;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .conf-bar > span { display: block; height: 100%; background: #4ade80; }
+  .source-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .source-快取 { background: #1e3a8a; color: #bfdbfe; }
+  .source-Claude { background: #581c87; color: #e9d5ff; }
+  .source-Claude\(圖\) { background: #831843; color: #fbcfe8; }
+  .source-人工 { background: #78350f; color: #fed7aa; }
+  .source-失敗 { background: #7f1d1d; color: #fecaca; }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #64748b;
+    font-size: 16px;
+  }
+
+  /* ========== 類別 / 員工管理面板 ========== */
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .panel-header h2 { font-size: 18px; font-weight: 700; }
+
+  .form-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: #1a1f2e;
+    border: 1px solid #2a3142;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  .form-row input {
+    background: #0a0e1a;
+    border: 1px solid #2a3142;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #e2e8f0;
+    font-size: 14px;
+    flex: 1;
+  }
+  .form-row input:focus { outline: none; border-color: #4ade80; }
+
+  /* ========== Toast ========== */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #1a1f2e;
+    border-left: 4px solid #4ade80;
+    padding: 12px 18px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    transform: translateX(400px);
+    transition: transform 0.25s;
+    z-index: 999;
+  }
+  .toast.show { transform: translateX(0); }
+  .toast.error { border-color: #ef4444; }
+
+  /* ========== 切換開關 ========== */
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 22px;
+  }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute;
+    inset: 0;
+    background: #475569;
+    border-radius: 22px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .slider::before {
+    content: '';
+    position: absolute;
+    height: 16px; width: 16px;
+    left: 3px; top: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+  .switch input:checked + .slider { background: #4ade80; }
+  .switch input:checked + .slider::before { transform: translateX(22px); }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- 頂部 -->
+  <div class="header">
+    <h1><span class="badge">●</span> GoWarehouse 管理後台</h1>
+    <div class="meta" id="meta">載入中...</div>
+  </div>
+
+  <!-- 分頁切換 -->
+  <div class="tabs">
+    <div class="tab active" data-tab="records">📦 包裹紀錄</div>
+    <div class="tab" data-tab="categories">🏷️ 類別管理</div>
+    <div class="tab" data-tab="employees">👥 員工管理</div>
+  </div>
+
+  <!-- ============ Tab 1:包裹紀錄 ============ -->
+  <div class="tab-panel active" id="panel-records">
+
+    <!-- 統計卡片 -->
+    <div class="stats-strip" id="stats-strip">
+      <div class="stat-card primary">
+        <div class="label">今日總數</div>
+        <div class="value" id="stat-total">—</div>
+      </div>
+    </div>
+
+    <!-- 篩選列 -->
+    <div class="filter-bar">
+      <label>操作員</label>
+      <select id="f-operator"><option value="">全部</option></select>
+      <label>類別</label>
+      <select id="f-category"><option value="">全部</option></select>
+      <label>開始</label>
+      <input type="date" id="f-start">
+      <label>結束</label>
+      <input type="date" id="f-end">
+      <button class="btn" id="btn-clear">清除</button>
+      <div class="right">
+        <span class="auto-refresh"><span class="pulse-dot"></span> 每 10 秒自動更新</span>
+        <button class="btn" id="btn-refresh">🔄 立即更新</button>
+        <button class="btn btn-primary" id="btn-export">📥 匯出 CSV</button>
+      </div>
+    </div>
+
+    <!-- 表格 -->
+    <div class="table-wrap">
+      <table id="records-table">
+        <thead>
+          <tr>
+            <th>時間</th>
+            <th>包裹號</th>
+            <th>商品描述</th>
+            <th>類別</th>
+            <th>信心</th>
+            <th>來源</th>
+            <th>操作員</th>
+          </tr>
+        </thead>
+        <tbody id="records-body">
+          <tr><td colspan="7" class="empty-state">載入中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- ============ Tab 2:類別管理 ============ -->
+  <div class="tab-panel" id="panel-categories">
+    <div class="panel-header">
+      <h2>🏷️ 類別清單</h2>
+    </div>
+
+    <div class="form-row">
+      <input type="text" id="cat-code" placeholder="代碼(例:A1)" maxlength="10">
+      <input type="text" id="cat-name" placeholder="類別名稱(例:服飾)" maxlength="20">
+      <input type="text" id="cat-location" placeholder="倉庫位置(例:1樓 A 區)" maxlength="30">
+      <button class="btn btn-primary" id="btn-cat-add">新增</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>代碼</th><th>類別名稱</th><th>倉庫位置</th><th style="width:160px;">操作</th></tr>
+        </thead>
+        <tbody id="cat-body">
+          <tr><td colspan="4" class="empty-state">載入中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ============ Tab 3:員工管理 ============ -->
+  <div class="tab-panel" id="panel-employees">
+    <div class="panel-header">
+      <h2>👥 員工清單</h2>
+    </div>
+
+    <div class="form-row">
+      <input type="text" id="emp-name" placeholder="員工姓名" maxlength="30">
+      <button class="btn btn-primary" id="btn-emp-add">新增</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>員工姓名</th><th style="width:120px;">啟用</th></tr>
+        </thead>
+        <tbody id="emp-body">
+          <tr><td colspan="2" class="empty-state">載入中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+
+<script>
+'use strict';
+
+// ============================================================================
+// 設定區
+// ============================================================================
+
+// ⚠️ 部署後,把這裡換成你 Apps Script Web App 的 URL(跟 mobile.html 一樣那條)
+const API_URL = 'https://script.google.com/a/macros/ibiza.com.tw/s/AKfycbx-BSqeGvTgKI4p6KMYAY-eqOrJMQ30dyVK2pggYTI1Av098l_FDSVktoHVmeAmNxA/exec';
+
+const REFRESH_INTERVAL_MS = 10000;
+
+
+// ============================================================================
+// 狀態與 DOM
+// ============================================================================
+
+const $ = id => document.getElementById(id);
+const els = {
+  meta:        $('meta'),
+  statsStrip:  $('stats-strip'),
+  fOperator:   $('f-operator'),
+  fCategory:   $('f-category'),
+  fStart:      $('f-start'),
+  fEnd:        $('f-end'),
+  btnClear:    $('btn-clear'),
+  btnRefresh:  $('btn-refresh'),
+  btnExport:   $('btn-export'),
+  recordsBody: $('records-body'),
+  catCode:     $('cat-code'),
+  catName:     $('cat-name'),
+  catLocation: $('cat-location'),
+  btnCatAdd:   $('btn-cat-add'),
+  catBody:     $('cat-body'),
+  empName:     $('emp-name'),
+  btnEmpAdd:   $('btn-emp-add'),
+  empBody:     $('emp-body'),
+  toast:       $('toast')
+};
+
+let categoriesCache = [];   // [{code, name, location}]
+let categoryMap = {};       // code -> {name, location}
+let employeesCache = [];    // [{name, active}]
+let lastRecords = [];       // 最新一份(供匯出用)
+let refreshTimer = null;
+let isEditing = false;      // 行內編輯時暫停 auto refresh
+
+
+// ============================================================================
+// API 呼叫
+// ============================================================================
+
+async function apiCall(action, payload = {}) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, ...payload })
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || '未知錯誤');
+  return data;
+}
+
+
+// ============================================================================
+// 分頁切換
+// ============================================================================
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    $('panel-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+
+// ============================================================================
+// 紀錄列表 + 統計
+// ============================================================================
+
+async function loadRecords() {
+  try {
+    const filters = collectFilters();
+    const [recRes, statsRes] = await Promise.all([
+      apiCall('getRecords', { filters }),
+      apiCall('getStats')
+    ]);
+    lastRecords = recRes.records;
+    renderRecords(recRes.records);
+    renderStats(statsRes);
+    els.meta.textContent = `更新於 ${new Date().toLocaleTimeString('zh-TW', { hour12: false })} · 共 ${recRes.records.length} 筆`;
+  } catch (err) {
+    showToast('載入失敗:' + err.message, true);
+  }
+}
+
+function collectFilters() {
+  const f = {};
+  if (els.fOperator.value) f.operator = els.fOperator.value;
+  if (els.fCategory.value) f.category = els.fCategory.value;
+  if (els.fStart.value)    f.startDate = els.fStart.value + 'T00:00:00';
+  if (els.fEnd.value)      f.endDate   = els.fEnd.value   + 'T23:59:59';
+  // 沒設日期區間 → 預設只看今天
+  if (!f.startDate && !f.endDate) f.todayOnly = true;
+  f.limit = 500;
+  return f;
+}
+
+function renderRecords(records) {
+  if (!records.length) {
+    els.recordsBody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有符合條件的紀錄</td></tr>';
+    return;
+  }
+  els.recordsBody.innerHTML = records.map(r => {
+    const cat = categoryMap[r.category] || {};
+    const catLabel = cat.name ? `${escapeHtml(r.category)} · ${escapeHtml(cat.name)}` : escapeHtml(r.category || '?');
+    const conf = Math.round((r.confidence || 0) * 100);
+    const sourceClass = 'source-' + escapeHtml(r.source || '');
+    return `
+      <tr data-row-id="${r.rowId}">
+        <td>${escapeHtml(r.timeDisplay || r.time)}</td>
+        <td><code>${escapeHtml(r.packageNumber)}</code></td>
+        <td title="${escapeHtml(r.description)}">${truncate(r.description, 40)}</td>
+        <td class="cat-cell" data-cat="${escapeHtml(r.category)}" data-desc="${escapeHtml(r.description)}">${catLabel}</td>
+        <td><span class="conf-bar"><span style="width:${conf}%"></span></span>${conf}%</td>
+        <td><span class="source-tag ${sourceClass}">${escapeHtml(r.source || '?')}</span></td>
+        <td>${escapeHtml(r.operator)}</td>
+      </tr>`;
+  }).join('');
+}
+
+function renderStats(stats) {
+  // 主卡 + 各類別 + 各員工
+  const cards = [
+    `<div class="stat-card primary">
+      <div class="label">今日總數</div>
+      <div class="value">${stats.total}</div>
+      <div class="sub">${stats.date}</div>
+    </div>`
+  ];
+
+  // 各類別
+  Object.entries(stats.byCategory)
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([code, n]) => {
+      const cat = categoryMap[code] || {};
+      cards.push(`
+        <div class="stat-card">
+          <div class="label">${escapeHtml(code)}${cat.name ? ' · ' + escapeHtml(cat.name) : ''}</div>
+          <div class="value">${n}</div>
+        </div>`);
+    });
+
+  // 各員工
+  Object.entries(stats.byOperator)
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([op, n]) => {
+      cards.push(`
+        <div class="stat-card">
+          <div class="label">👤 ${escapeHtml(op)}</div>
+          <div class="value">${n}</div>
+        </div>`);
+    });
+
+  els.statsStrip.innerHTML = cards.join('');
+}
+
+
+// ============================================================================
+// 行內修改類別
+// ============================================================================
+
+els.recordsBody.addEventListener('click', (e) => {
+  const cell = e.target.closest('td.cat-cell');
+  if (!cell || cell.classList.contains('editing')) return;
+  startEditCategory(cell);
+});
+
+function startEditCategory(cell) {
+  isEditing = true;
+  cell.classList.add('editing');
+  const oldCode = cell.dataset.cat;
+  const select = document.createElement('select');
+  select.innerHTML = categoriesCache.map(c =>
+    `<option value="${escapeHtml(c.code)}" ${c.code === oldCode ? 'selected' : ''}>${escapeHtml(c.code)} · ${escapeHtml(c.name)}</option>`
+  ).join('');
+  cell.innerHTML = '';
+  cell.appendChild(select);
+  select.focus();
+
+  const finish = async (commit) => {
+    if (!isEditing) return;
+    isEditing = false;
+    cell.classList.remove('editing');
+    const newCode = select.value;
+    if (!commit || newCode === oldCode) {
+      restoreCell(cell, oldCode);
+      return;
+    }
+    try {
+      const rowId = cell.parentElement.dataset.rowId;
+      await apiCall('updateRecord', { rowId: Number(rowId), newCategory: newCode });
+      showToast('✅ 已更新分類,反向學習已套用快取');
+      loadRecords();
+    } catch (err) {
+      showToast('更新失敗:' + err.message, true);
+      restoreCell(cell, oldCode);
+    }
+  };
+
+  select.addEventListener('change', () => finish(true));
+  select.addEventListener('blur', () => setTimeout(() => finish(false), 100));
+  select.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') finish(false);
+    if (e.key === 'Enter') finish(true);
+  });
+}
+
+function restoreCell(cell, code) {
+  const cat = categoryMap[code] || {};
+  cell.innerHTML = cat.name ? `${escapeHtml(code)} · ${escapeHtml(cat.name)}` : escapeHtml(code);
+}
+
+
+// ============================================================================
+// 篩選器
+// ============================================================================
+
+[els.fOperator, els.fCategory, els.fStart, els.fEnd].forEach(el => {
+  el.addEventListener('change', loadRecords);
+});
+
+els.btnClear.addEventListener('click', () => {
+  els.fOperator.value = '';
+  els.fCategory.value = '';
+  els.fStart.value = '';
+  els.fEnd.value = '';
+  loadRecords();
+});
+
+els.btnRefresh.addEventListener('click', loadRecords);
+
+
+// ============================================================================
+// CSV 匯出(UTF-8 BOM 確保 Excel 不亂碼)
+// ============================================================================
+
+els.btnExport.addEventListener('click', () => {
+  if (!lastRecords.length) { showToast('沒有資料可匯出', true); return; }
+  const headers = ['時間', '包裹號', '商品描述', '類別代碼', '類別名稱', '信心度', '來源', '操作員'];
+  const rows = lastRecords.map(r => {
+    const cat = categoryMap[r.category] || {};
+    return [
+      r.timeDisplay || r.time,
+      r.packageNumber,
+      r.description,
+      r.category,
+      cat.name || '',
+      r.confidence,
+      r.source,
+      r.operator
+    ];
+  });
+  const csv = [headers, ...rows].map(row =>
+    row.map(cell => {
+      const s = String(cell == null ? '' : cell).replace(/"/g, '""');
+      return /[",\n]/.test(s) ? `"${s}"` : s;
+    }).join(',')
+  ).join('\r\n');
+
+  // UTF-8 BOM
+  const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const today = new Date().toISOString().slice(0, 10);
+  a.download = `包裹紀錄_${today}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ 已匯出 CSV');
+});
+
+
+// ============================================================================
+// 類別管理
+// ============================================================================
+
+async function loadCategories() {
+  try {
+    const { categories } = await apiCall('getCategories');
+    categoriesCache = categories;
+    categoryMap = {};
+    categories.forEach(c => { categoryMap[c.code] = c; });
+    renderCategories();
+    fillCategoryFilter();
+  } catch (err) {
+    showToast('讀取類別失敗:' + err.message, true);
+  }
+}
+
+function renderCategories() {
+  if (!categoriesCache.length) {
+    els.catBody.innerHTML = '<tr><td colspan="4" class="empty-state">尚未建立類別。請在上方表單新增。</td></tr>';
+    return;
+  }
+  els.catBody.innerHTML = categoriesCache.map(c => `
+    <tr data-code="${escapeHtml(c.code)}">
+      <td><code>${escapeHtml(c.code)}</code></td>
+      <td><input type="text" class="cat-edit-name" value="${escapeHtml(c.name)}" maxlength="20"></td>
+      <td><input type="text" class="cat-edit-loc" value="${escapeHtml(c.location)}" maxlength="30"></td>
+      <td>
+        <button class="btn btn-sm btn-primary cat-save">儲存</button>
+        <button class="btn btn-sm btn-danger cat-del">刪除</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function fillCategoryFilter() {
+  els.fCategory.innerHTML = '<option value="">全部</option>' +
+    categoriesCache.map(c =>
+      `<option value="${escapeHtml(c.code)}">${escapeHtml(c.code)} · ${escapeHtml(c.name)}</option>`
+    ).join('');
+}
+
+els.btnCatAdd.addEventListener('click', async () => {
+  const code = els.catCode.value.trim();
+  const name = els.catName.value.trim();
+  const location = els.catLocation.value.trim();
+  if (!code || !name) { showToast('代碼和名稱不能空', true); return; }
+  try {
+    await apiCall('addCategory', { code, name, location });
+    els.catCode.value = ''; els.catName.value = ''; els.catLocation.value = '';
+    showToast('✅ 已新增類別');
+    await loadCategories();
+  } catch (err) {
+    showToast('新增失敗:' + err.message, true);
+  }
+});
+
+els.catBody.addEventListener('click', async (e) => {
+  const tr = e.target.closest('tr');
+  if (!tr) return;
+  const code = tr.dataset.code;
+
+  if (e.target.classList.contains('cat-save')) {
+    const name = tr.querySelector('.cat-edit-name').value.trim();
+    const location = tr.querySelector('.cat-edit-loc').value.trim();
+    try {
+      await apiCall('updateCategory', { code, name, location });
+      showToast('✅ 已更新');
+      await loadCategories();
+    } catch (err) {
+      showToast('更新失敗:' + err.message, true);
+    }
+  } else if (e.target.classList.contains('cat-del')) {
+    if (!confirm(`確定刪除類別「${code}」?\n注意:已分類為此類別的歷史紀錄不會被刪除。`)) return;
+    try {
+      await apiCall('deleteCategory', { code });
+      showToast('✅ 已刪除');
+      await loadCategories();
+    } catch (err) {
+      showToast('刪除失敗:' + err.message, true);
+    }
+  }
+});
+
+
+// ============================================================================
+// 員工管理
+// ============================================================================
+
+async function loadEmployees() {
+  try {
+    const { employees } = await apiCall('getEmployees');
+    employeesCache = employees;
+    renderEmployees();
+    fillOperatorFilter();
+  } catch (err) {
+    showToast('讀取員工失敗:' + err.message, true);
+  }
+}
+
+function renderEmployees() {
+  if (!employeesCache.length) {
+    els.empBody.innerHTML = '<tr><td colspan="2" class="empty-state">尚未建立員工。請在上方表單新增。</td></tr>';
+    return;
+  }
+  els.empBody.innerHTML = employeesCache.map(e => `
+    <tr data-name="${escapeHtml(e.name)}">
+      <td>${escapeHtml(e.name)}</td>
+      <td>
+        <label class="switch">
+          <input type="checkbox" class="emp-toggle" ${e.active ? 'checked' : ''}>
+          <span class="slider"></span>
+        </label>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function fillOperatorFilter() {
+  const active = employeesCache.filter(e => e.active);
+  els.fOperator.innerHTML = '<option value="">全部</option>' +
+    active.map(e => `<option value="${escapeHtml(e.name)}">${escapeHtml(e.name)}</option>`).join('');
+}
+
+els.btnEmpAdd.addEventListener('click', async () => {
+  const name = els.empName.value.trim();
+  if (!name) { showToast('請輸入姓名', true); return; }
+  try {
+    await apiCall('addEmployee', { name });
+    els.empName.value = '';
+    showToast('✅ 已新增員工');
+    await loadEmployees();
+  } catch (err) {
+    showToast('新增失敗:' + err.message, true);
+  }
+});
+
+els.empBody.addEventListener('change', async (e) => {
+  if (!e.target.classList.contains('emp-toggle')) return;
+  const name = e.target.closest('tr').dataset.name;
+  const active = e.target.checked;
+  try {
+    await apiCall('toggleEmployee', { name, active });
+    showToast(active ? `✅ 已啟用 ${name}` : `已停用 ${name}`);
+    fillOperatorFilter();  // 反映在篩選器
+  } catch (err) {
+    showToast('更新失敗:' + err.message, true);
+    e.target.checked = !active;  // 還原
+  }
+});
+
+
+// ============================================================================
+// 自動更新
+// ============================================================================
+
+function startAutoRefresh() {
+  stopAutoRefresh();
+  refreshTimer = setInterval(() => {
+    if (isEditing) return;  // 編輯中不刷新避免打斷
+    if (document.querySelector('.tab.active').dataset.tab !== 'records') return;  // 只在紀錄分頁 refresh
+    loadRecords();
+  }, REFRESH_INTERVAL_MS);
+}
+
+function stopAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = null;
+}
+
+
+// ============================================================================
+// 工具
+// ============================================================================
+
+let toastTimer = null;
+function showToast(msg, isError = false) {
+  els.toast.textContent = msg;
+  els.toast.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    els.toast.className = 'toast' + (isError ? ' error' : '');
+  }, 2200);
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function truncate(s, n) {
+  s = String(s || '');
+  return s.length > n ? escapeHtml(s.slice(0, n)) + '…' : escapeHtml(s);
+}
+
+
+// ============================================================================
+// 啟動
+// ============================================================================
+
+(async function init() {
+  if (API_URL.startsWith('YOUR_')) {
+    showToast('⚠️ 請先在 admin.html 設定 API_URL', true);
+    return;
+  }
+  // 先載類別與員工(填到下拉),再載紀錄(渲染需要 categoryMap)
+  await Promise.all([loadCategories(), loadEmployees()]);
+  await loadRecords();
+  startAutoRefresh();
+})();
+
+</script>
+</body>
+</html>

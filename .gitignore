@@ -1,0 +1,26 @@
+# Mac 系統檔
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# 編輯器暫存
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# 環境變數(以防萬一未來加)
+.env
+.env.local
+.env.*.local
+
+# 日誌
+*.log
+
+# Node.js(以防萬一未來加)
+node_modules/
+
+# 壓縮檔
+*.zip
+*.tar.gz

@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0e1a">
+<title>GoWarehouse 包裹分類</title>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  /* ========== 重設與基礎 ========== */
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    background: #0a0e1a;
+    color: #fff;
+    font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
+    font-size: 18px;
+    overflow: hidden;
+  }
+  button, input, select { font: inherit; color: inherit; }
+
+  /* ========== 主版面(直式 flex) ========== */
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  /* ========== 頂部:操作員選擇 ========== */
+  .top-bar {
+    background: #1a1f2e;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid #2a3142;
+  }
+  .top-bar label { font-size: 16px; color: #94a3b8; flex-shrink: 0; }
+  .top-bar select {
+    flex: 1;
+    background: #0a0e1a;
+    border: 2px solid #2a3142;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .top-bar select:focus { outline: none; border-color: #4ade80; }
+
+  /* ========== 描述輸入區 ========== */
+  .desc-section {
+    padding: 14px 16px;
+    background: #11162a;
+    border-bottom: 1px solid #2a3142;
+  }
+  .section-title { font-size: 16px; color: #94a3b8; margin-bottom: 8px; }
+  .desc-input {
+    width: 100%;
+    min-height: 60px;
+    background: #0a0e1a;
+    border: 2px solid #2a3142;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 22px;
+    font-weight: 500;
+    resize: none;
+  }
+  .desc-input:focus { outline: none; border-color: #4ade80; }
+  .desc-input::placeholder { color: #475569; }
+
+  .desc-buttons { display: flex; gap: 10px; margin-top: 10px; }
+  .btn-camera, .btn-classify {
+    flex: 1;
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.05s, background 0.15s;
+  }
+  .btn-camera   { background: #2563eb; color: #fff; }
+  .btn-classify { background: #4ade80; color: #052e16; }
+  .btn-camera:active, .btn-classify:active { transform: scale(0.97); }
+  .btn-camera:disabled, .btn-classify:disabled { background: #475569; color: #94a3b8; }
+
+  /* 拍照預覽縮圖 */
+  .photo-preview {
+    margin-top: 10px;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background: #0a0e1a;
+    border: 2px solid #2a3142;
+    border-radius: 8px;
+    padding: 8px;
+  }
+  .photo-preview.active { display: flex; }
+  .photo-preview img {
+    width: 64px; height: 64px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .photo-preview .photo-info { flex: 1; font-size: 14px; color: #94a3b8; }
+  .photo-preview .photo-clear {
+    background: #ef4444; color: #fff; border: none;
+    padding: 6px 10px; border-radius: 6px;
+    font-size: 14px; font-weight: 700;
+  }
+
+  /* ========== 結果顯示區(整片變色 + 大字) ========== */
+  .result-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: #0a0e1a;
+    transition: background 0.25s;
+    overflow: hidden;
+  }
+  .result-section.loading { background: #1e3a8a; }
+  .result-section.error   { background: #991b1b; }
+  .result-section.success { /* 由 JS 動態設定 */ }
+
+  .result-empty {
+    color: #475569;
+    font-size: 22px;
+    text-align: center;
+  }
+  .result-empty .hint { font-size: 16px; margin-top: 8px; color: #334155; }
+
+  .result-card { text-align: center; width: 100%; }
+  .result-prefix { font-size: 28px; font-weight: 600; opacity: 0.9; }
+  .result-main {
+    font-size: 96px;
+    font-weight: 900;
+    line-height: 1.0;
+    margin: 12px 0;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    word-break: break-all;
+  }
+  .result-name { font-size: 32px; font-weight: 700; opacity: 0.95; }
+  .result-meta {
+    margin-top: 16px;
+    font-size: 18px;
+    opacity: 0.85;
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .result-meta span { background: rgba(0,0,0,0.25); padding: 4px 10px; border-radius: 6px; }
+
+  /* ========== 包裹編號輸入區(永遠保持 focus) ========== */
+  .pkg-section {
+    background: #1a1f2e;
+    padding: 14px 16px;
+    border-top: 2px solid #2a3142;
+  }
+  .pkg-input-wrap { display: flex; gap: 10px; }
+  .pkg-input {
+    flex: 1;
+    background: #0a0e1a;
+    border: 3px solid #4ade80;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .pkg-input:focus { outline: none; border-color: #86efac; box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.2); }
+  .pkg-input:disabled { border-color: #475569; background: #0f172a; color: #475569; }
+
+  .btn-qr, .btn-submit {
+    border: none;
+    border-radius: 10px;
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0 18px;
+    flex-shrink: 0;
+  }
+  .btn-qr { background: #6366f1; color: #fff; min-width: 64px; }
+  .btn-submit { background: #4ade80; color: #052e16; min-width: 80px; }
+  .btn-qr:active, .btn-submit:active { transform: scale(0.97); }
+
+  /* ========== QR 掃描覆蓋層 ========== */
+  .qr-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 1000;
+    display: none;
+    flex-direction: column;
+    padding: 20px;
+  }
+  .qr-overlay.active { display: flex; }
+  .qr-overlay h3 { font-size: 22px; margin-bottom: 12px; text-align: center; }
+  #qr-reader { width: 100%; max-width: 500px; margin: 0 auto; }
+  .qr-close {
+    margin-top: 16px;
+    background: #ef4444;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  /* ========== Toast(短暫提示) ========== */
+  .toast {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    background: #4ade80;
+    color: #052e16;
+    padding: 14px 28px;
+    border-radius: 12px;
+    font-size: 20px;
+    font-weight: 700;
+    z-index: 999;
+    transition: transform 0.25s ease-out;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { background: #ef4444; color: #fff; }
+
+  /* ========== 小螢幕(< 360px)微調 ========== */
+  @media (max-width: 360px) {
+    .result-main { font-size: 72px; }
+    .result-name { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- 頂部:操作員選擇 -->
+  <div class="top-bar">
+    <label for="operator">👤 操作員</label>
+    <select id="operator">
+      <option value="">-- 選擇 --</option>
+    </select>
+  </div>
+
+  <!-- 描述輸入區 -->
+  <div class="desc-section">
+    <div class="section-title">📦 商品描述(拍照優先,看不清楚再打字)</div>
+    <textarea id="desc" class="desc-input" rows="2" placeholder="拍照後或直接打字描述..."></textarea>
+    <div class="desc-buttons">
+      <button id="btn-camera" class="btn-camera">📷 拍照</button>
+      <button id="btn-classify" class="btn-classify">✓ 判斷文字</button>
+    </div>
+    <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none">
+    <div id="photo-preview" class="photo-preview">
+      <img id="photo-thumb" alt="">
+      <div class="photo-info" id="photo-info">已拍攝</div>
+      <button id="photo-clear" class="photo-clear">×</button>
+    </div>
+  </div>
+
+  <!-- 結果顯示區 -->
+  <div id="result" class="result-section">
+    <div class="result-empty">
+      <div>👈 先選操作員</div>
+      <div class="hint">輸入商品描述後按「判斷」</div>
+    </div>
+  </div>
+
+  <!-- 包裹編號 -->
+  <div class="pkg-section">
+    <div class="section-title">🔖 包裹編號(條碼槍直接掃 / 相機掃 QR)</div>
+    <div class="pkg-input-wrap">
+      <input id="pkg" class="pkg-input" type="text" placeholder="掃描或輸入..." autocomplete="off" disabled>
+      <button id="btn-qr" class="btn-qr">📷</button>
+      <button id="btn-submit" class="btn-submit">送出</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- QR 掃描覆蓋層 -->
+<div id="qr-overlay" class="qr-overlay">
+  <h3>📷 對準 QR Code</h3>
+  <div id="qr-reader"></div>
+  <button class="qr-close" id="btn-qr-close">取消</button>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+
+<script>
+'use strict';
+
+// ============================================================================
+// 設定區
+// ============================================================================
+
+// ⚠️ 部署後,把這裡換成你 Apps Script Web App 的 URL
+const API_URL = 'https://script.google.com/a/macros/ibiza.com.tw/s/AKfycbx-BSqeGvTgKI4p6KMYAY-eqOrJMQ30dyVK2pggYTI1Av098l_FDSVktoHVmeAmNxA/exec';
+
+const LS_OPERATOR_KEY = 'gw_operator';
+
+// 類別代碼 → 顏色(8 色循環,以代碼字串雜湊取色)
+const CATEGORY_COLORS = [
+  '#4ade80', '#fb923c', '#60a5fa', '#f472b6',
+  '#a78bfa', '#facc15', '#22d3ee', '#fb7185'
+];
+
+
+// ============================================================================
+// 狀態與 DOM
+// ============================================================================
+
+const $ = id => document.getElementById(id);
+const els = {
+  operator:     $('operator'),
+  desc:         $('desc'),
+  btnCamera:    $('btn-camera'),
+  cameraInput:  $('camera-input'),
+  photoPreview: $('photo-preview'),
+  photoThumb:   $('photo-thumb'),
+  photoInfo:    $('photo-info'),
+  photoClear:   $('photo-clear'),
+  btnClassify:  $('btn-classify'),
+  result:       $('result'),
+  pkg:          $('pkg'),
+  btnQr:        $('btn-qr'),
+  btnSubmit:    $('btn-submit'),
+  qrOverlay:    $('qr-overlay'),
+  btnQrClose:   $('btn-qr-close'),
+  toast:        $('toast')
+};
+
+let currentResult = null;       // 最近一次分類結果(等送出)
+let isClassifying = false;
+let isSubmitting = false;
+let qrScanner = null;
+
+
+// ============================================================================
+// API 呼叫(用 text/plain 避免 CORS preflight)
+// ============================================================================
+
+async function apiCall(action, payload = {}) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, ...payload })
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || '未知錯誤');
+  return data;
+}
+
+
+// ============================================================================
+// 操作員下拉
+// ============================================================================
+
+async function loadEmployees() {
+  try {
+    const { employees } = await apiCall('getEmployees');
+    const active = employees.filter(e => e.active);
+    els.operator.innerHTML = '<option value="">-- 選擇 --</option>' +
+      active.map(e => `<option value="${escapeHtml(e.name)}">${escapeHtml(e.name)}</option>`).join('');
+
+    // 還原上次選的人
+    const saved = localStorage.getItem(LS_OPERATOR_KEY);
+    if (saved && active.some(e => e.name === saved)) {
+      els.operator.value = saved;
+    }
+  } catch (err) {
+    showToast('讀取員工清單失敗:' + err.message, true);
+  }
+}
+
+els.operator.addEventListener('change', () => {
+  if (els.operator.value) {
+    localStorage.setItem(LS_OPERATOR_KEY, els.operator.value);
+  } else {
+    localStorage.removeItem(LS_OPERATOR_KEY);
+  }
+});
+
+
+// ============================================================================
+// 拍照判斷(Claude Vision)
+// ============================================================================
+
+let pendingImageDataURL = null;  // 拍完還沒送出的圖
+
+els.btnCamera.addEventListener('click', () => els.cameraInput.click());
+
+els.cameraInput.addEventListener('change', async (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  els.cameraInput.value = '';  // 讓下次拍同一張也會觸發 change
+
+  if (!els.operator.value) {
+    showToast('請先選擇操作員', true);
+    els.operator.focus();
+    return;
+  }
+
+  els.btnCamera.disabled = true;
+  els.btnCamera.textContent = '🔄 壓縮中...';
+  try {
+    const dataURL = await compressImage(file, 1024, 0.8);
+    pendingImageDataURL = dataURL;
+    showPhotoPreview(dataURL, file.size);
+    els.btnCamera.textContent = '📷 重拍';
+    els.btnCamera.disabled = false;
+    classifyImage();  // 自動觸發判斷
+  } catch (err) {
+    showToast('讀取照片失敗:' + err.message, true);
+    els.btnCamera.disabled = false;
+    els.btnCamera.textContent = '📷 拍照';
+  }
+});
+
+els.photoClear.addEventListener('click', () => {
+  pendingImageDataURL = null;
+  els.photoPreview.classList.remove('active');
+  els.btnCamera.textContent = '📷 拍照';
+});
+
+function showPhotoPreview(dataURL, originalSize) {
+  els.photoThumb.src = dataURL;
+  const compressedKB = Math.round(dataURL.length * 0.75 / 1024);
+  const originalKB = Math.round(originalSize / 1024);
+  els.photoInfo.textContent = `已拍攝(${originalKB}KB → ${compressedKB}KB)`;
+  els.photoPreview.classList.add('active');
+}
+
+function compressImage(file, maxDim, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(maxDim / img.width, maxDim / img.height, 1);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function classifyImage() {
+  if (!pendingImageDataURL) return;
+  if (!els.operator.value) { showToast('請先選擇操作員', true); return; }
+  if (isClassifying) return;
+
+  isClassifying = true;
+  setResultLoading();
+
+  try {
+    // dataURL = "data:image/jpeg;base64,xxx" → 拆出 mediaType 與純 base64
+    const [meta, b64] = pendingImageDataURL.split(',');
+    const mediaType = meta.match(/data:(.*?);/)[1];
+
+    const data = await apiCall('classifyImage', {
+      imageBase64: b64,
+      mediaType: mediaType
+    });
+    currentResult = {
+      description: '(拍照判斷)',
+      category:    data.category,
+      confidence:  data.confidence,
+      source:      data.source,
+      keyword:     data.keyword || ''
+    };
+    renderResult(currentResult);
+    els.pkg.disabled = false;
+    els.pkg.value = '';
+    els.pkg.focus();
+  } catch (err) {
+    setResultError(err.message);
+    currentResult = null;
+  } finally {
+    isClassifying = false;
+  }
+}
+
+
+// ============================================================================
+// 分類流程
+// ============================================================================
+
+async function classify() {
+  const description = els.desc.value.trim();
+  if (!description) { showToast('請先輸入商品描述', true); return; }
+  if (!els.operator.value) { showToast('請先選擇操作員', true); els.operator.focus(); return; }
+  if (isClassifying) return;
+
+  isClassifying = true;
+  els.btnClassify.disabled = true;
+  setResultLoading();
+
+  try {
+    const data = await apiCall('classify', { description });
+    currentResult = {
+      description,
+      category:   data.category,
+      confidence: data.confidence,
+      source:     data.source,
+      keyword:    data.keyword || ''
+    };
+    renderResult(currentResult);
+
+    // 啟用包裹輸入並 focus
+    els.pkg.disabled = false;
+    els.pkg.value = '';
+    els.pkg.focus();
+  } catch (err) {
+    setResultError(err.message);
+    currentResult = null;
+  } finally {
+    isClassifying = false;
+    els.btnClassify.disabled = false;
+  }
+}
+
+els.btnClassify.addEventListener('click', classify);
+
+
+// ============================================================================
+// 結果渲染
+// ============================================================================
+
+function setResultLoading() {
+  els.result.className = 'result-section loading';
+  els.result.innerHTML = `<div class="result-empty"><div>🤔 判斷中...</div></div>`;
+}
+
+function setResultError(msg) {
+  els.result.className = 'result-section error';
+  els.result.innerHTML = `
+    <div class="result-card">
+      <div class="result-prefix">⚠️ 判斷失敗</div>
+      <div class="result-name" style="margin-top:18px;">${escapeHtml(msg)}</div>
+    </div>`;
+}
+
+function renderResult(r) {
+  const isUnknown = !r.category || r.category === '未分類';
+  const categories = window.__categoryMap || {};
+  const cat = categories[r.category];
+  const name = cat ? cat.name : r.category;
+  const location = cat ? cat.location : '';
+
+  if (isUnknown) {
+    els.result.className = 'result-section error';
+    els.result.innerHTML = `
+      <div class="result-card">
+        <div class="result-prefix">⚠️ 未分類</div>
+        <div class="result-main" style="font-size:64px;">?</div>
+        <div class="result-name">請主管手動處理</div>
+      </div>`;
+  } else {
+    const color = colorForCategory(r.category);
+    els.result.className = 'result-section success';
+    els.result.style.background = color;
+    els.result.style.color = textColorOn(color);
+    els.result.innerHTML = `
+      <div class="result-card">
+        <div class="result-prefix">📍 丟到</div>
+        <div class="result-main">${escapeHtml(location || r.category)}</div>
+        <div class="result-name">${escapeHtml(name)}</div>
+        <div class="result-meta">
+          <span>信心 ${(r.confidence * 100).toFixed(0)}%</span>
+          <span>來源 ${escapeHtml(r.source)}</span>
+        </div>
+      </div>`;
+  }
+  if (navigator.vibrate) navigator.vibrate(80);
+}
+
+function clearResult() {
+  els.result.className = 'result-section';
+  els.result.style.background = '';
+  els.result.style.color = '';
+  els.result.innerHTML = `
+    <div class="result-empty">
+      <div>✅ 已記錄,等待下一個包裹</div>
+      <div class="hint">輸入商品描述後按「判斷」</div>
+    </div>`;
+}
+
+function colorForCategory(code) {
+  let h = 0;
+  for (let i = 0; i < code.length; i++) h = (h * 31 + code.charCodeAt(i)) & 0xffffffff;
+  return CATEGORY_COLORS[Math.abs(h) % CATEGORY_COLORS.length];
+}
+
+function textColorOn(bgHex) {
+  // 高對比黑或白
+  const r = parseInt(bgHex.slice(1, 3), 16);
+  const g = parseInt(bgHex.slice(3, 5), 16);
+  const b = parseInt(bgHex.slice(5, 7), 16);
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.6 ? '#0a0e1a' : '#fff';
+}
+
+
+// ============================================================================
+// 包裹編號送出(藍牙條碼槍 → Enter 自動送出 / 手動按送出)
+// ============================================================================
+
+els.pkg.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    submit();
+  }
+});
+
+els.btnSubmit.addEventListener('click', submit);
+
+async function submit() {
+  if (isSubmitting) return;
+  if (!currentResult) { showToast('請先判斷分類', true); return; }
+  const packageNumber = els.pkg.value.trim();
+  if (!packageNumber) { showToast('請輸入包裹編號', true); els.pkg.focus(); return; }
+  if (!els.operator.value) { showToast('請選擇操作員', true); return; }
+
+  isSubmitting = true;
+  els.btnSubmit.disabled = true;
+
+  try {
+    await apiCall('submit', {
+      packageNumber,
+      description: currentResult.description,
+      category:    currentResult.category,
+      confidence:  currentResult.confidence,
+      source:      currentResult.source,
+      keyword:     currentResult.keyword,
+      operator:    els.operator.value
+    });
+    showToast('✅ 已記錄');
+    if (navigator.vibrate) navigator.vibrate([60, 60, 60]);
+    resetForNext();
+  } catch (err) {
+    showToast('送出失敗:' + err.message, true);
+  } finally {
+    isSubmitting = false;
+    els.btnSubmit.disabled = false;
+  }
+}
+
+function resetForNext() {
+  currentResult = null;
+  pendingImageDataURL = null;
+  els.desc.value = '';
+  els.pkg.value = '';
+  els.pkg.disabled = true;
+  els.photoPreview.classList.remove('active');
+  els.btnCamera.textContent = '📷 拍照';
+  clearResult();
+}
+
+
+// ============================================================================
+// QR 掃描(html5-qrcode)
+// ============================================================================
+
+els.btnQr.addEventListener('click', openQr);
+els.btnQrClose.addEventListener('click', closeQr);
+
+async function openQr() {
+  els.qrOverlay.classList.add('active');
+  if (!qrScanner) {
+    qrScanner = new Html5Qrcode('qr-reader');
+  }
+  try {
+    await qrScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decoded) => {
+        els.pkg.value = decoded;
+        closeQr();
+        submit();  // 掃到自動送出
+      },
+      () => {}  // 忽略單次解碼失敗
+    );
+  } catch (err) {
+    showToast('相機啟動失敗:' + err.message, true);
+    closeQr();
+  }
+}
+
+async function closeQr() {
+  els.qrOverlay.classList.remove('active');
+  if (qrScanner && qrScanner.isScanning) {
+    try { await qrScanner.stop(); } catch (_) {}
+  }
+}
+
+
+// ============================================================================
+// 維持包裹輸入框 focus(條碼槍體驗)
+// ============================================================================
+
+document.addEventListener('click', (e) => {
+  // 點擊不是輸入元件、按鈕、選單時,把 focus 拉回 pkg(若已啟用)
+  if (els.pkg.disabled) return;
+  const tag = (e.target.tagName || '').toLowerCase();
+  const interactive = ['input', 'textarea', 'select', 'button'];
+  if (interactive.indexOf(tag) === -1 && !els.qrOverlay.classList.contains('active')) {
+    els.pkg.focus();
+  }
+});
+
+
+// ============================================================================
+// 工具:Toast、escape
+// ============================================================================
+
+let toastTimer = null;
+function showToast(msg, isError = false) {
+  els.toast.textContent = msg;
+  els.toast.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    els.toast.className = 'toast' + (isError ? ' error' : '');
+  }, 1800);
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+
+// ============================================================================
+// 啟動
+// ============================================================================
+
+(async function init() {
+  if (API_URL.startsWith('YOUR_')) {
+    showToast('⚠️ 請先在 mobile.html 設定 API_URL', true);
+  }
+  await loadEmployees();
+  // 讀類別清單,做代碼 → 名稱/位置 對應(渲染結果用)
+  try {
+    const { categories } = await apiCall('getCategories');
+    window.__categoryMap = {};
+    categories.forEach(c => { window.__categoryMap[c.code] = c; });
+  } catch (err) {
+    showToast('讀取類別失敗:' + err.message, true);
+  }
+})();
+
+</script>
+</body>
+</html>
