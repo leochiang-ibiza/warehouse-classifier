@@ -113,12 +113,13 @@
 
   /* ========== 結果顯示區(整片變色 + 大字) ========== */
   .result-section {
-    flex: 1;
+    flex: 1 1 0;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 16px;
+    padding: 12px;
     background: #0a0e1a;
     transition: background 0.25s;
     overflow: hidden;
@@ -134,27 +135,35 @@
   }
   .result-empty .hint { font-size: 16px; margin-top: 8px; color: #334155; }
 
-  .result-card { text-align: center; width: 100%; }
-  .result-prefix { font-size: 28px; font-weight: 600; opacity: 0.9; }
+  .result-card {
+    text-align: center;
+    width: 100%;
+    max-height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .result-prefix { font-size: clamp(20px, 5vw, 28px); font-weight: 600; opacity: 0.9; }
   .result-main {
-    font-size: 96px;
+    font-size: clamp(48px, 16vw, 96px);
     font-weight: 900;
     line-height: 1.0;
-    margin: 12px 0;
+    margin: 8px 0;
     text-shadow: 0 4px 20px rgba(0,0,0,0.3);
     word-break: break-all;
   }
-  .result-name { font-size: 32px; font-weight: 700; opacity: 0.95; }
+  .result-name { font-size: clamp(20px, 5.5vw, 32px); font-weight: 700; opacity: 0.95; }
   .result-meta {
-    margin-top: 16px;
-    font-size: 18px;
+    margin-top: 12px;
+    font-size: clamp(13px, 3.5vw, 18px);
     opacity: 0.85;
     display: flex;
-    gap: 14px;
+    gap: 10px;
     justify-content: center;
     flex-wrap: wrap;
   }
-  .result-meta span { background: rgba(0,0,0,0.25); padding: 4px 10px; border-radius: 6px; }
+  .result-meta span { background: rgba(0,0,0,0.25); padding: 3px 8px; border-radius: 6px; }
 
   /* ========== 包裹編號輸入區(永遠保持 focus) ========== */
   .pkg-section {
@@ -233,11 +242,7 @@
   .toast.show { transform: translateX(-50%) translateY(0); }
   .toast.error { background: #ef4444; color: #fff; }
 
-  /* ========== 小螢幕(< 360px)微調 ========== */
-  @media (max-width: 360px) {
-    .result-main { font-size: 72px; }
-    .result-name { font-size: 26px; }
-  }
+  /* clamp() 已經在處理大部分尺寸,這裡不需要額外規則 */
 </style>
 </head>
 <body>
