@@ -212,19 +212,30 @@ function lookupCache(description) {
 
 
 function classifyWithClaude(description) {
-  const prompt = buildClassifyPrompt(description, getCategories());
+  const prompt = buildClassifyPrompt(description, getCategoriesCached());
   const text = callClaude([{ type: 'text', text: prompt }]);
   return parseAIResponse(text);
 }
 
 
 function classifyImageWithClaude(imageBase64, mediaType) {
-  const prompt = buildImagePrompt(getCategories());
+  const prompt = buildImagePrompt(getCategoriesCached());
   const text = callClaude([
     { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
     { type: 'text', text: prompt }
   ]);
   return parseAIResponse(text);
+}
+
+
+/** 類別清單快取 60 秒,避免每次呼叫都讀 Sheet(節省 ~300–500ms) */
+function getCategoriesCached() {
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get('categories');
+  if (cached) return JSON.parse(cached);
+  const fresh = getCategories();
+  cache.put('categories', JSON.stringify(fresh), 60);
+  return fresh;
 }
 
 
@@ -240,7 +251,7 @@ function callClaude(content) {
     },
     payload: JSON.stringify({
       model: CLAUDE_MODEL,
-      max_tokens: 300,
+      max_tokens: 100,
       messages: [{ role: 'user', content: content }]
     }),
     muteHttpExceptions: true
@@ -275,21 +286,15 @@ ${list}
 
 
 function buildImagePrompt(categories) {
-  const list = categories.map(c =>
-    `- ${c.code}:${c.name}${c.location ? '(位置:' + c.location + ')' : ''}`
-  ).join('\n');
+  const list = categories.map(c => `${c.code}:${c.name}`).join('、');
 
-  return `你是台灣倉儲業 GoWarehouse 的包裹分類助手。
-這張照片是一個淘寶包裹的外觀(可能拍到外箱印的商品名、品牌、商品本身)。
-請從以下類別中選一個最符合的代碼。
-
-可用類別:
+  return `這是淘寶包裹標籤照片,讀標籤上印的中文商品描述,從以下類別選一個代碼:
 ${list}
 
-請只回傳純 JSON(不要加 markdown、不要加說明文字),格式如下:
-{"category":"類別代碼","confidence":0~1之間的數字,"keyword":"從圖片辨識到的1~6字代表關鍵字(優先取品牌名或商品名),用於未來文字快取比對"}
+只回 JSON,不要 markdown:
+{"category":"代碼","confidence":0-1,"keyword":"圖片中代表性中文1-6字"}
 
-如果完全無法判斷,category 填 "未分類",confidence 填 0,keyword 填空字串。`;
+無法判斷則 category 填"未分類"、confidence 0。`;
 }
 
 

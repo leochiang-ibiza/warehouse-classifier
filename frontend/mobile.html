@@ -424,7 +424,7 @@ els.cameraInput.addEventListener('change', async (e) => {
   els.btnCamera.disabled = true;
   els.btnCamera.textContent = '🔄 壓縮中...';
   try {
-    const dataURL = await compressImage(file, 1024, 0.8);
+    const dataURL = await compressImage(file, 800, 0.7);
     pendingImageDataURL = dataURL;
     showPhotoPreview(dataURL, file.size);
     els.btnCamera.textContent = '📷 重拍';
