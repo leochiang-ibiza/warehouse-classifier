@@ -171,16 +171,18 @@
     padding: 14px 16px;
     border-top: 2px solid #2a3142;
   }
-  .pkg-input-wrap { display: flex; gap: 10px; }
+  .pkg-input-wrap { display: flex; gap: 8px; min-width: 0; }
   .pkg-input {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
     background: #0a0e1a;
     border: 3px solid #4ade80;
     border-radius: 10px;
-    padding: 14px;
-    font-size: 24px;
+    padding: 14px 12px;
+    font-size: 20px;
     font-weight: 700;
     letter-spacing: 0.5px;
+    width: 100%;
   }
   .pkg-input:focus { outline: none; border-color: #86efac; box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.2); }
   .pkg-input:disabled { border-color: #475569; background: #0f172a; color: #475569; }
@@ -188,14 +190,15 @@
   .btn-qr, .btn-submit {
     border: none;
     border-radius: 10px;
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 700;
     cursor: pointer;
-    padding: 0 18px;
+    padding: 0 14px;
     flex-shrink: 0;
+    white-space: nowrap;
   }
-  .btn-qr { background: #6366f1; color: #fff; min-width: 64px; }
-  .btn-submit { background: #4ade80; color: #052e16; min-width: 80px; }
+  .btn-qr { background: #6366f1; color: #fff; min-width: 52px; }
+  .btn-submit { background: #4ade80; color: #052e16; min-width: 68px; }
   .btn-qr:active, .btn-submit:active { transform: scale(0.97); }
 
   /* ========== QR 掃描覆蓋層 ========== */
