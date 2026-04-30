@@ -170,14 +170,21 @@ function handleClassifyImage(body) {
 
   try {
     const r = classifyImageWithClaude(imageBase64, mediaType);
+    Logger.log(`[拍照判斷] Claude 結果: category=${r.category}, keyword="${r.keyword}", description="${r.description}"`);
     if (r && r.category) {
       // 用 Claude 讀到的 description / keyword 反查快取,
       // 若快取存在且類別不同 → 以快取為準(代表主管修正過)
       const probeText = ((r.description || '') + ' ' + (r.keyword || '')).trim();
+      Logger.log(`[拍照判斷] 反查快取 probeText="${probeText}"`);
       if (probeText) {
         const cacheHit = lookupCache(probeText);
+        if (cacheHit) {
+          Logger.log(`[拍照判斷] 快取命中: keyword="${cacheHit.keyword}", category="${cacheHit.category}"`);
+        } else {
+          Logger.log(`[拍照判斷] 快取沒命中`);
+        }
         if (cacheHit && cacheHit.category && cacheHit.category !== r.category && cacheHit.category !== '未分類') {
-          Logger.log(`快取覆蓋 Claude:${r.category} → ${cacheHit.category}(關鍵字 ${cacheHit.keyword})`);
+          Logger.log(`[拍照判斷] ✅ 快取覆蓋 Claude:${r.category} → ${cacheHit.category}`);
           return {
             category:    cacheHit.category,
             confidence:  1.0,
