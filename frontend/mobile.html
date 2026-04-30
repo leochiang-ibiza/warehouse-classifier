@@ -453,6 +453,17 @@ function showPhotoPreview(dataURL, originalSize) {
   els.photoPreview.classList.add('active');
 }
 
+function updatePhotoInfoQR(qrResult) {
+  const baseText = els.photoInfo.textContent.split(' · ')[0];
+  if (qrResult.ok && qrResult.url) {
+    const short = qrResult.url.length > 40 ? qrResult.url.slice(0, 40) + '...' : qrResult.url;
+    els.photoInfo.innerHTML = baseText + ` · <span style="color:#4ade80;">✓ QR: ${escapeHtml(short)}</span>`;
+  } else {
+    const reason = qrResult.error || '無 QR';
+    els.photoInfo.innerHTML = baseText + ` · <span style="color:#f87171;">✗ 沒掃到 QR(${escapeHtml(reason)})</span>`;
+  }
+}
+
 function compressImage(file, maxDim, quality) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -490,10 +501,15 @@ async function classifyImage() {
     const mediaType = meta.match(/data:(.*?);/)[1];
 
     // 兩條路平行跑:Claude 看圖 + 本地掃 QR
-    const [data, qrUrl] = await Promise.all([
+    const [data, qrResult] = await Promise.all([
       apiCall('classifyImage', { imageBase64: b64, mediaType: mediaType }),
-      scanQRFromFile(pendingOriginalFile).catch(() => '')  // 掃失敗不影響主流程
+      scanQRFromFile(pendingOriginalFile)
+        .then(url => ({ ok: true, url }))
+        .catch(err => ({ ok: false, error: err && err.message ? err.message : String(err) }))
     ]);
+
+    // 在預覽區顯示 QR 掃描結果
+    updatePhotoInfoQR(qrResult);
 
     currentResult = {
       description: data.description || data.keyword || '(拍照判斷)',
@@ -501,7 +517,7 @@ async function classifyImage() {
       confidence:  data.confidence,
       source:      data.source,
       keyword:     data.keyword || '',
-      productUrl:  qrUrl || ''
+      productUrl:  (qrResult.ok && qrResult.url) ? qrResult.url : ''
     };
     renderResult(currentResult);
     els.pkg.disabled = false;
@@ -515,22 +531,53 @@ async function classifyImage() {
   }
 }
 
-/** 用 html5-qrcode 在本地對檔案掃 QR,不上傳、不打 API */
+/** 用 html5-qrcode 在本地掃 QR。先試原圖,失敗再試壓縮版。 */
 async function scanQRFromFile(file) {
-  if (!file) return '';
-  const tempId = 'qr-temp-' + Date.now();
+  // Try 1:原圖
+  try {
+    const text = await scanQROnce(file);
+    if (text) return text;
+  } catch (err1) {
+    console.log('[QR] 原圖掃描失敗:', err1 && err1.message);
+    // Try 2:壓縮版(dataURL → Blob)
+    try {
+      if (pendingImageDataURL) {
+        const blob = dataURLToBlob(pendingImageDataURL);
+        const fallback = new File([blob], 'compressed.jpg', { type: 'image/jpeg' });
+        const text2 = await scanQROnce(fallback);
+        if (text2) return text2;
+      }
+    } catch (err2) {
+      console.log('[QR] 壓縮版也掃不到:', err2 && err2.message);
+      throw err2;
+    }
+    throw err1;
+  }
+  return '';
+}
+
+async function scanQROnce(file) {
+  const tempId = 'qr-temp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
   const div = document.createElement('div');
   div.id = tempId;
   div.style.display = 'none';
   document.body.appendChild(div);
   const scanner = new Html5Qrcode(tempId, /* verbose */ false);
   try {
-    const text = await scanner.scanFile(file, /* showImage */ false);
-    return text || '';
+    return await scanner.scanFile(file, /* showImage */ false);
   } finally {
     try { await scanner.clear(); } catch (_) {}
     if (div.parentNode) div.parentNode.removeChild(div);
   }
+}
+
+function dataURLToBlob(dataURL) {
+  const [meta, b64] = dataURL.split(',');
+  const mime = meta.match(/data:(.*?);/)[1];
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
 }
 
 
