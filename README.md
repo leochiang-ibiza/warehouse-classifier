@@ -131,7 +131,10 @@ warehouse-classifier/
 
 ## 七、部署摘要
 
-完整步驟見 [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)。簡述如下:
+完整步驟見 [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)(原作者自己部署用)。
+**如果你是別人,想 fork 一份來自己用 → 看 [`docs/FORK_GUIDE.md`](docs/FORK_GUIDE.md)。**
+
+簡述如下:
 
 1. 建立 Google Sheet,加好 4 個分頁(欄位如上)
 2. 把 `backend/Code.gs` 貼進新建的 Apps Script 專案
