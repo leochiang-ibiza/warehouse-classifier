@@ -170,11 +170,29 @@ function handleClassifyImage(body) {
 
   try {
     const r = classifyImageWithClaude(imageBase64, mediaType);
-    if (r && r.category) return Object.assign(r, { source: 'Claude(圖)' });
+    if (r && r.category) {
+      // 用 Claude 讀到的 description / keyword 反查快取,
+      // 若快取存在且類別不同 → 以快取為準(代表主管修正過)
+      const probeText = ((r.description || '') + ' ' + (r.keyword || '')).trim();
+      if (probeText) {
+        const cacheHit = lookupCache(probeText);
+        if (cacheHit && cacheHit.category && cacheHit.category !== r.category && cacheHit.category !== '未分類') {
+          Logger.log(`快取覆蓋 Claude:${r.category} → ${cacheHit.category}(關鍵字 ${cacheHit.keyword})`);
+          return {
+            category:    cacheHit.category,
+            confidence:  1.0,
+            source:      'Claude(圖)+快取修正',
+            keyword:     cacheHit.keyword,
+            description: r.description || ''
+          };
+        }
+      }
+      return Object.assign(r, { source: 'Claude(圖)' });
+    }
   } catch (err) {
     Logger.log('❌ Claude 圖片判斷失敗:' + err.message);
   }
-  return { category: '未分類', confidence: 0, source: '失敗', keyword: '' };
+  return { category: '未分類', confidence: 0, source: '失敗', keyword: '', description: '' };
 }
 
 
@@ -359,7 +377,8 @@ function learnKeyword(keyword, category) {
 
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]).toLowerCase() === k.toLowerCase()) {
-      sheet.getRange(i + 1, 2).setValue(category);
+      // 已存在 → 只更新命中次數,不覆蓋類別
+      // (避免 Claude 重複判錯時,把主管修正過的類別蓋回去)
       sheet.getRange(i + 1, 3).setValue((Number(data[i][2]) || 0) + 1);
       return;
     }

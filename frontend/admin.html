@@ -217,11 +217,13 @@
     font-size: 11px;
     font-weight: 600;
   }
-  .source-快取 { background: #1e3a8a; color: #bfdbfe; }
-  .source-Claude { background: #581c87; color: #e9d5ff; }
-  .source-Claude\(圖\) { background: #831843; color: #fbcfe8; }
-  .source-人工 { background: #78350f; color: #fed7aa; }
-  .source-失敗 { background: #7f1d1d; color: #fecaca; }
+  .source-tag { background: #475569; color: #e2e8f0; }
+  .source-tag.s-cache { background: #1e3a8a; color: #bfdbfe; }
+  .source-tag.s-claude { background: #581c87; color: #e9d5ff; }
+  .source-tag.s-claude-img { background: #831843; color: #fbcfe8; }
+  .source-tag.s-claude-corrected { background: #14532d; color: #bbf7d0; }
+  .source-tag.s-manual { background: #78350f; color: #fed7aa; }
+  .source-tag.s-fail { background: #7f1d1d; color: #fecaca; }
 
   .empty-state {
     text-align: center;
@@ -549,7 +551,7 @@ function renderRecords(records) {
     const cat = categoryMap[r.category] || {};
     const catLabel = cat.name ? `${escapeHtml(r.category)} · ${escapeHtml(cat.name)}` : escapeHtml(r.category || '?');
     const conf = Math.round((r.confidence || 0) * 100);
-    const sourceClass = 'source-' + escapeHtml(r.source || '');
+    const sourceClass = sourceTagClass(r.source);
     const urlCell = r.productUrl
       ? `<a href="${escapeHtml(r.productUrl)}" target="_blank" rel="noopener" title="${escapeHtml(r.productUrl)}">🔗 開</a>`
       : '<span style="color:#475569;">—</span>';
@@ -909,6 +911,17 @@ function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[c]));
+}
+
+function sourceTagClass(source) {
+  const s = String(source || '');
+  if (s === '快取') return 's-cache';
+  if (s === 'Claude') return 's-claude';
+  if (s === 'Claude(圖)') return 's-claude-img';
+  if (s === 'Claude(圖)+快取修正') return 's-claude-corrected';
+  if (s === '人工') return 's-manual';
+  if (s === '失敗') return 's-fail';
+  return '';
 }
 
 function truncate(s, n) {
