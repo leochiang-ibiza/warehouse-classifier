@@ -366,10 +366,11 @@
             <th>信心</th>
             <th>來源</th>
             <th>操作員</th>
+            <th>連結</th>
           </tr>
         </thead>
         <tbody id="records-body">
-          <tr><td colspan="7" class="empty-state">載入中...</td></tr>
+          <tr><td colspan="8" class="empty-state">載入中...</td></tr>
         </tbody>
       </table>
     </div>
@@ -541,7 +542,7 @@ function collectFilters() {
 
 function renderRecords(records) {
   if (!records.length) {
-    els.recordsBody.innerHTML = '<tr><td colspan="7" class="empty-state">沒有符合條件的紀錄</td></tr>';
+    els.recordsBody.innerHTML = '<tr><td colspan="8" class="empty-state">沒有符合條件的紀錄</td></tr>';
     return;
   }
   els.recordsBody.innerHTML = records.map(r => {
@@ -549,6 +550,9 @@ function renderRecords(records) {
     const catLabel = cat.name ? `${escapeHtml(r.category)} · ${escapeHtml(cat.name)}` : escapeHtml(r.category || '?');
     const conf = Math.round((r.confidence || 0) * 100);
     const sourceClass = 'source-' + escapeHtml(r.source || '');
+    const urlCell = r.productUrl
+      ? `<a href="${escapeHtml(r.productUrl)}" target="_blank" rel="noopener" title="${escapeHtml(r.productUrl)}">🔗 開</a>`
+      : '<span style="color:#475569;">—</span>';
     return `
       <tr data-row-id="${r.rowId}">
         <td>${escapeHtml(r.timeDisplay || r.time)}</td>
@@ -558,6 +562,7 @@ function renderRecords(records) {
         <td><span class="conf-bar"><span style="width:${conf}%"></span></span>${conf}%</td>
         <td><span class="source-tag ${sourceClass}">${escapeHtml(r.source || '?')}</span></td>
         <td>${escapeHtml(r.operator)}</td>
+        <td>${urlCell}</td>
       </tr>`;
   }).join('');
 }
@@ -680,7 +685,7 @@ els.btnRefresh.addEventListener('click', loadRecords);
 
 els.btnExport.addEventListener('click', () => {
   if (!lastRecords.length) { showToast('沒有資料可匯出', true); return; }
-  const headers = ['時間', '包裹號', '商品描述', '類別代碼', '類別名稱', '信心度', '來源', '操作員'];
+  const headers = ['時間', '包裹號', '商品描述', '類別代碼', '類別名稱', '信心度', '來源', '操作員', '商品連結'];
   const rows = lastRecords.map(r => {
     const cat = categoryMap[r.category] || {};
     return [
@@ -691,7 +696,8 @@ els.btnExport.addEventListener('click', () => {
       cat.name || '',
       r.confidence,
       r.source,
-      r.operator
+      r.operator,
+      r.productUrl || ''
     ];
   });
   const csv = [headers, ...rows].map(row =>

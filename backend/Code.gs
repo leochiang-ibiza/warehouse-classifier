@@ -33,7 +33,7 @@ const CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
 
 // 包裹紀錄欄位順序(改 Sheet 欄位的話這裡要同步改)
 const RECORD_COL = {
-  TIME: 1, PACKAGE: 2, DESC: 3, CATEGORY: 4, CONFIDENCE: 5, SOURCE: 6, OPERATOR: 7
+  TIME: 1, PACKAGE: 2, DESC: 3, CATEGORY: 4, CONFIDENCE: 5, SOURCE: 6, OPERATOR: 7, URL: 8
 };
 
 
@@ -292,7 +292,7 @@ function buildImagePrompt(categories) {
 ${list}
 
 只回 JSON,不要 markdown:
-{"category":"代碼","confidence":0-1,"keyword":"圖片中代表性中文1-6字"}
+{"category":"代碼","confidence":0-1,"keyword":"快取用1-6字","description":"完整商品描述10-30字"}
 
 無法判斷則 category 填"未分類"、confidence 0。`;
 }
@@ -307,13 +307,14 @@ function parseAIResponse(text) {
   try {
     const obj = JSON.parse(cleaned);
     return {
-      category:   String(obj.category || '未分類'),
-      confidence: Number(obj.confidence) || 0,
-      keyword:    String(obj.keyword || '')
+      category:    String(obj.category || '未分類'),
+      confidence:  Number(obj.confidence) || 0,
+      keyword:     String(obj.keyword || ''),
+      description: String(obj.description || '')
     };
   } catch (err) {
     Logger.log('⚠️ AI 回傳無法解析為 JSON,原文:' + text);
-    return { category: '未分類', confidence: 0, keyword: '' };
+    return { category: '未分類', confidence: 0, keyword: '', description: '' };
   }
 }
 
@@ -336,7 +337,8 @@ function handleSubmit(body) {
     String(body.category || '未分類'),
     Number(body.confidence) || 0,
     String(body.source || ''),
-    operator
+    operator,
+    String(body.productUrl || '')
   ]);
 
   // 來自 AI 的成功命中 → 自動學習關鍵字
@@ -390,7 +392,8 @@ function getRecords(filters) {
       category:      String(row[3] || ''),
       confidence:    Number(row[4]) || 0,
       source:        String(row[5] || ''),
-      operator:      String(row[6] || '')
+      operator:      String(row[6] || ''),
+      productUrl:    String(row[7] || '')
     });
   }
 

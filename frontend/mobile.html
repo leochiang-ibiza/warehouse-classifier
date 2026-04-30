@@ -406,7 +406,8 @@ els.operator.addEventListener('change', () => {
 // 拍照判斷(Claude Vision)
 // ============================================================================
 
-let pendingImageDataURL = null;  // 拍完還沒送出的圖
+let pendingImageDataURL = null;  // 壓縮後的圖(送 Claude)
+let pendingOriginalFile = null;  // 原圖(本地掃 QR 用)
 
 els.btnCamera.addEventListener('click', () => els.cameraInput.click());
 
@@ -426,6 +427,7 @@ els.cameraInput.addEventListener('change', async (e) => {
   try {
     const dataURL = await compressImage(file, 800, 0.7);
     pendingImageDataURL = dataURL;
+    pendingOriginalFile = file;  // 原圖留著掃 QR
     showPhotoPreview(dataURL, file.size);
     els.btnCamera.textContent = '📷 重拍';
     els.btnCamera.disabled = false;
@@ -487,16 +489,19 @@ async function classifyImage() {
     const [meta, b64] = pendingImageDataURL.split(',');
     const mediaType = meta.match(/data:(.*?);/)[1];
 
-    const data = await apiCall('classifyImage', {
-      imageBase64: b64,
-      mediaType: mediaType
-    });
+    // 兩條路平行跑:Claude 看圖 + 本地掃 QR
+    const [data, qrUrl] = await Promise.all([
+      apiCall('classifyImage', { imageBase64: b64, mediaType: mediaType }),
+      scanQRFromFile(pendingOriginalFile).catch(() => '')  // 掃失敗不影響主流程
+    ]);
+
     currentResult = {
-      description: '(拍照判斷)',
+      description: data.description || data.keyword || '(拍照判斷)',
       category:    data.category,
       confidence:  data.confidence,
       source:      data.source,
-      keyword:     data.keyword || ''
+      keyword:     data.keyword || '',
+      productUrl:  qrUrl || ''
     };
     renderResult(currentResult);
     els.pkg.disabled = false;
@@ -507,6 +512,24 @@ async function classifyImage() {
     currentResult = null;
   } finally {
     isClassifying = false;
+  }
+}
+
+/** 用 html5-qrcode 在本地對檔案掃 QR,不上傳、不打 API */
+async function scanQRFromFile(file) {
+  if (!file) return '';
+  const tempId = 'qr-temp-' + Date.now();
+  const div = document.createElement('div');
+  div.id = tempId;
+  div.style.display = 'none';
+  document.body.appendChild(div);
+  const scanner = new Html5Qrcode(tempId, /* verbose */ false);
+  try {
+    const text = await scanner.scanFile(file, /* showImage */ false);
+    return text || '';
+  } finally {
+    try { await scanner.clear(); } catch (_) {}
+    if (div.parentNode) div.parentNode.removeChild(div);
   }
 }
 
@@ -662,6 +685,7 @@ async function submit() {
       confidence:  currentResult.confidence,
       source:      currentResult.source,
       keyword:     currentResult.keyword,
+      productUrl:  currentResult.productUrl || '',
       operator:    els.operator.value
     });
     showToast('✅ 已記錄');
@@ -678,6 +702,7 @@ async function submit() {
 function resetForNext() {
   currentResult = null;
   pendingImageDataURL = null;
+  pendingOriginalFile = null;
   els.desc.value = '';
   els.pkg.value = '';
   els.pkg.disabled = true;
